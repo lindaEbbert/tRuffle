@@ -90,16 +90,10 @@ shinyServer(function(input, output) {
             mydata[i,"cluster_down"] <- number_down
           }
           
-          #TODO Macht das Folgende Sinn?
-          # for upregulated gene use number_up for downregulated gene use number_down to calculate uniqueness-score
+
           # add score to table
-          if (mydata[i,input$col_log]>0){
-            mydata[i,"uniqueness"] <- uniqueness(DEG_clusters=number_up,total_clusters=totalClusters)
-          }
+          mydata[i,"uniqueness"] <- uniqueness(DEG_clusters=number_up+number_down,total_clusters=totalClusters)
           
-          if (mydata[i,input$col_log]<0){
-            mydata[i,"uniqueness"] <- uniqueness(DEG_clusters=number_down,total_clusters=totalClusters)
-          }
         }
         mydata #return table
         
@@ -108,9 +102,12 @@ shinyServer(function(input, output) {
 
     #apply considered filtering thresholds----
     # "p-value", "adjusted p-value", "log2FC", "uniqueness"
-    data3 <- reactive({
+    filtered_table_but_uniqueness <- reactive({
       
         data_temp <- uniqueness_table()
+        
+        data_temp <- data_temp[as.character(data_temp[,input$col_cluster])%in% input$considered_clusters,] #just considered clusters
+        
         if("p-value" %in% input$considered_thresholds){
             data_temp <- data_temp[as.numeric(data_temp[,input$col_p])<=input$p_threshold,]
         }
@@ -122,27 +119,32 @@ shinyServer(function(input, output) {
         if("log2FC" %in% input$considered_thresholds){
             data_temp <- data_temp[data_temp[,input$col_log]>=input$logFC_threshold | data_temp[,input$col_log]<=(-input$logFC_threshold),]
         }
+        
 
-        if("uniqueness" %in% input$considered_thresholds){
-            data_temp <- data_temp[data_temp$uniqueness>=input$uniqueness_threshold[1] & data_temp$uniqueness<=input$uniqueness_threshold[2],]
-        }
         data_temp
     })
     
+    filtered_table <- reactive({
+      
+      data_temp <- filtered_table_but_uniqueness()
+      if("uniqueness" %in% input$considered_thresholds){
+            data_temp <- data_temp[data_temp$uniqueness>=input$uniqueness_threshold[1] & data_temp$uniqueness<=input$uniqueness_threshold[2],]
+      }
+      
+      data_temp[,-c(length(colnames(data_temp))-1,length(colnames(data_temp))-2)]
+  
+    })
+            
+    
     #output of filtered table----
     output$DEG_table_filtered_out <- renderDataTable({
-        req(input$DEG_table)
-        table_of_considered_clusters()[,-c(length(colnames(data3()))-1,length(colnames(data3()))-2)] #print table without cluster_up and cluster_down
+        filtered_table()
     })
     
-    #table of considered clusters----
-    table_of_considered_clusters <- reactive({
-        data3()[as.character(data3()[,input$col_cluster])%in%input$considered_clusters,]
-    })
     
     #data for upset plot----
     upset_input <- reactive({
-        temp <- data3() #TODO use uniqueness_table() without uniqueness score threshold
+        temp <- uniqueness_table() 
         upsetinput <- data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("up",length(unique(temp[,input$col_gene]))))
         upsetinput <- rbind(upsetinput,data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("down",length(unique(temp[,input$col_gene])))))
         
@@ -191,21 +193,21 @@ shinyServer(function(input, output) {
     shown_columns <- reactive({
       vector <- c("gene")
       if("p-value" %in% input$considered_thresholds){
-        vector <- c(vector,colnames(data3()[input$col_p]))
+        vector <- c(vector,colnames(filtered_table()[input$col_p]))
       }
       
       if("adjusted p-value" %in% input$considered_thresholds){
-        vector <- c(vector,colnames(data3()[input$col_adj_p]))
+        vector <- c(vector,colnames(filtered_table()[input$col_adj_p]))
       }
       
       if("log2FC" %in% input$considered_thresholds){
-        vector <- c(vector,colnames(data3()[input$col_log]))
+        vector <- c(vector,colnames(filtered_table()[input$col_log]))
       }
       
       if("uniqueness" %in% input$considered_thresholds){
         vector <- c(vector,"uniqueness")
       }
-      vector <- c(vector,colnames(data3())[input$col_cluster])
+      vector <- c(vector,colnames(filtered_table())[input$col_cluster])
       vector
     })
     
@@ -213,7 +215,7 @@ shinyServer(function(input, output) {
     #table of upregulated genes----
     upregulated_genes <- reactive({
         index <- c()
-        temp <- data3()[,shown_columns()]
+        temp <- filtered_table()[,shown_columns()]
         for (i in 1:length(temp$gene)){
             if(temp$gene[i] %in% upregulated_genes_vector()){
                 if(temp[i,6] %in% input$intersection_clusters){
@@ -227,7 +229,7 @@ shinyServer(function(input, output) {
     #table of downregulated genes----
     downregulated_genes <- reactive({
         index <- c()
-        temp <- data3()[,shown_columns()]
+        temp <- filtered_table()[,shown_columns()]
         for (i in 1:length(temp$gene)){
             if(temp$gene[i] %in% downregulated_genes_vector()){
                 if(temp[i,6] %in% input$intersection_clusters){
@@ -300,6 +302,6 @@ shinyServer(function(input, output) {
     # 
     # output$test2 <- renderDataTable({
     #     req(input$DEG_table)
-    #     data3()
+    #     filtered_table()
     # })    
 })
