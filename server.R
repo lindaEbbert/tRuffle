@@ -69,52 +69,48 @@ shinyServer(function(input, output) {
         updateCheckboxGroupInput(session=getDefaultReactiveDomain(), inputId = "intersection_clusters",choices = intersection_clusters(), selected = intersection_clusters()[c(1,2)],inline = TRUE)
     })
     
-    #empty data frame----
-    data1 <- reactive({
-        cbind(DEG_table_input(), cluster_up=NA, cluster_down=NA, uniqueness=NA)
-    })
-    
-    #number of clusters----
-    totalClusters <- reactive({length(unique(data1()[,input$col_cluster]))})#TODO use vector of all clusters to calculate
-    
-    #filled datatable----
-    data2 <- reactive({
-        mydata <- data1()
-        for (i in 1:length(data1()[,1])){
-
-            if (is.na(data1()$cluster_up[i])||is.na(data1()$cluster_down[i])){#wenn cluster_up oder cluster_down NA enthält, dann:
-                
-                #gene name
-                gene <- data1()[i,input$col_gene]
-                #number of clusters in which gene is upregulated
-                number_up <- length(unique(data1()[data1()[,input$col_gene]==gene&data1()[,input$col_log]>0,input$col_cluster]))
-                #number of clusters in which gene is downregulated
-                number_down <- length(unique(data1()[data1()[,input$col_gene]==gene&data1()[,input$col_log]<0,input$col_cluster]))
-                #add to data frame
-                mydata[i,"cluster_up"] <- number_up
-                mydata[i,"cluster_down"] <- number_down
-            }
+    #filtered dataset----
+    filtered_table <- reactive({
+        mydata <- cbind(DEG_table_input(), cluster_up=NA, cluster_down=NA, uniqueness=NA)
+        
+        totalClusters <- length(clusters())
+        
+        for (i in 1:length(mydata[,1])){
+          
+          if (is.na(mydata$cluster_up[i])||is.na(mydata$cluster_down[i])){#wenn cluster_up oder cluster_down NA enthält, dann:
             
+            #gene name
+            gene <- mydata[i,input$col_gene]
+            #number of clusters in which gene is upregulated
+            number_up <- length(unique(mydata[mydata[,input$col_gene]==gene&mydata[,input$col_log]>0,input$col_cluster]))
+            #number of clusters in which gene is downregulated
+            number_down <- length(unique(mydata[mydata[,input$col_gene]==gene&mydata[,input$col_log]<0,input$col_cluster]))
+            #add to data frame
+            mydata[i,"cluster_up"] <- number_up
+            mydata[i,"cluster_down"] <- number_down
+          }
+          
           #TODO Macht das Folgende Sinn?
-            # for upregulated gene use number_up for downregulated gene use number_down to calculate uniqueness-score
-            # add score to table
-            if (mydata[i,input$col_log]>0){
-                mydata[i,"uniqueness"] <- uniqueness(DEG_clusters=number_up,total_clusters=totalClusters())
-            }
-            
-            if (mydata[i,input$col_log]<0){
-                mydata[i,"uniqueness"] <- uniqueness(DEG_clusters=number_down,total_clusters=totalClusters())
-            }
+          # for upregulated gene use number_up for downregulated gene use number_down to calculate uniqueness-score
+          # add score to table
+          if (mydata[i,input$col_log]>0){
+            mydata[i,"uniqueness"] <- uniqueness(DEG_clusters=number_up,total_clusters=totalClusters)
+          }
+          
+          if (mydata[i,input$col_log]<0){
+            mydata[i,"uniqueness"] <- uniqueness(DEG_clusters=number_down,total_clusters=totalClusters)
+          }
         }
         mydata #return table
-        #TODO combine with data1()
+        
     })
+    
 
     #apply considered filtering thresholds----
     # "p-value", "adjusted p-value", "log2FC", "uniqueness"
     data3 <- reactive({
       
-        data_temp <- data2()
+        data_temp <- filtered_table()
         if("p-value" %in% input$considered_thresholds){
             data_temp <- data_temp[as.numeric(data_temp[,input$col_p])<=input$p_threshold,]
         }
@@ -146,7 +142,7 @@ shinyServer(function(input, output) {
     
     #data for upset plot----
     upset_input <- reactive({
-        temp <- data3() #TODO use data2() without uniqueness score threshold
+        temp <- data3() #TODO use filtered_table() without uniqueness score threshold
         upsetinput <- data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("up",length(unique(temp[,input$col_gene]))))
         upsetinput <- rbind(upsetinput,data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("down",length(unique(temp[,input$col_gene])))))
         
