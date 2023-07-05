@@ -124,7 +124,7 @@ shinyServer(function(input, output) {
         }
 
         if("uniqueness" %in% input$considered_thresholds){
-            data_temp <- data_temp[data_temp$uniqueness>=input$uniqueness_threshold,] #TODO add upper threshold
+            data_temp <- data_temp[data_temp$uniqueness>=input$uniqueness_threshold[1] & data_temp$uniqueness<=input$uniqueness_threshold[2],]
         }
         data_temp
     })
