@@ -70,7 +70,7 @@ shinyServer(function(input, output) {
     })
     
     #filtered dataset----
-    filtered_table <- reactive({
+    uniqueness_table <- reactive({
         mydata <- cbind(DEG_table_input(), cluster_up=NA, cluster_down=NA, uniqueness=NA)
         
         totalClusters <- length(clusters())
@@ -110,7 +110,7 @@ shinyServer(function(input, output) {
     # "p-value", "adjusted p-value", "log2FC", "uniqueness"
     data3 <- reactive({
       
-        data_temp <- filtered_table()
+        data_temp <- uniqueness_table()
         if("p-value" %in% input$considered_thresholds){
             data_temp <- data_temp[as.numeric(data_temp[,input$col_p])<=input$p_threshold,]
         }
@@ -142,7 +142,7 @@ shinyServer(function(input, output) {
     
     #data for upset plot----
     upset_input <- reactive({
-        temp <- data3() #TODO use filtered_table() without uniqueness score threshold
+        temp <- data3() #TODO use uniqueness_table() without uniqueness score threshold
         upsetinput <- data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("up",length(unique(temp[,input$col_gene]))))
         upsetinput <- rbind(upsetinput,data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("down",length(unique(temp[,input$col_gene])))))
         
