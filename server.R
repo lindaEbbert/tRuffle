@@ -66,7 +66,7 @@ shinyServer(function(input, output) {
     
     #update choices for input$intersection_clusters----
     observe({
-        updateCheckboxGroupInput(session=getDefaultReactiveDomain(), inputId = "intersection_clusters",choices = intersection_clusters(), selected = intersection_clusters()[c(1,2)],inline = TRUE)
+        updateCheckboxGroupInput(session=getDefaultReactiveDomain(), inputId = "intersection_clusters",choices = intersection_clusters(), selected = intersection_clusters(),inline = TRUE)
     })
     
     #filtered dataset----
