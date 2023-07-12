@@ -69,7 +69,7 @@ shinyServer(function(input, output) {
         updateCheckboxGroupInput(session=getDefaultReactiveDomain(), inputId = "intersection_clusters",choices = intersection_clusters(), selected = intersection_clusters(),inline = TRUE)
     })
     
-    #filtered dataset----
+    #unfiltered dataset----
     uniqueness_table <- reactive({
         mydata <- cbind(DEG_table_input(), cluster_up=NA, cluster_down=NA, uniqueness=NA)
         
@@ -144,25 +144,31 @@ shinyServer(function(input, output) {
     
     #data for upset plot----
     upset_input <- reactive({
-        temp <- uniqueness_table() 
-        upsetinput <- data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("up",length(unique(temp[,input$col_gene]))))
-        upsetinput <- rbind(upsetinput,data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("down",length(unique(temp[,input$col_gene])))))
+        temp <- filtered_table_but_uniqueness()
         
-        for (i in input$considered_clusters){
-            upsetinput <- cbind(upsetinput,rep(0,length(upsetinput[,1])))
+        upsetinput <- list()
+        for (cl in input$considered_clusters) {
+          upsetinput <- append(upsetinput,list(cl=temp$gene[temp[input$col_cluster]==cl]))
         }
-        # fill in 1 for every DEG
-        colnames(upsetinput) <- c("gene","up_down",input$considered_clusters)
-        for (i in 1:length(temp[,1])){
-            gene <- temp[i,input$col_gene]
-            #cluster_name <- 
-            cluster <- temp[i,input$col_cluster]
-            if (temp[i,input$col_log]>0){
-                upsetinput[upsetinput$gene==gene&upsetinput$up_down=="up",cluster] <- 1
-            } else {
-                upsetinput[upsetinput$gene==gene&upsetinput$up_down=="down",cluster] <- 1
-            }
-        }
+        names(upsetinput) <- input$considered_clusters
+        # upsetinput <- data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("up",length(unique(temp[,input$col_gene]))))
+        # upsetinput <- rbind(upsetinput,data.frame("gene"=unique(temp[,input$col_gene]),"up_down"=rep("down",length(unique(temp[,input$col_gene])))))
+        # 
+        # for (i in input$considered_clusters){
+        #     upsetinput <- cbind(upsetinput,rep(0,length(upsetinput[,1])))
+        # }
+        # # fill in 1 for every DEG
+        # colnames(upsetinput) <- c("gene","up_down",input$considered_clusters)
+        # for (i in 1:length(temp[,1])){
+        #     gene <- temp[i,input$col_gene]
+        #     #cluster_name <- 
+        #     cluster <- temp[i,input$col_cluster]
+        #     if (temp[i,input$col_log]>0){
+        #         upsetinput[upsetinput$gene==gene&upsetinput$up_down=="up",cluster] <- 1
+        #     } else {
+        #         upsetinput[upsetinput$gene==gene&upsetinput$up_down=="down",cluster] <- 1
+        #     }
+        # }
         upsetinput
     })
     
@@ -251,15 +257,8 @@ shinyServer(function(input, output) {
     
     #output upset plot ----
     output$upset <- renderPlot({
-        upset(upset_input(),
-              nsets = length(input$considered_clusters),
-              nintersects = NA, 
-              sets = input$considered_clusters,
-              keep.order = TRUE,
-              #point.size = 2.8,
-              text.scale=1.5,
-              #line.size = 1,
-              mb.ratio = c(0.6, 0.4))
+        upset(fromList(upset_input()),
+              text.scale=1.5)
     })
     
     #output ???
