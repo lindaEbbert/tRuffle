@@ -105,7 +105,6 @@ shinyServer(function(input, output) {
     filtered_table_but_uniqueness <- reactive({
       
         data_temp <- uniqueness_table()
-        
         data_temp <- data_temp[as.character(data_temp[,input$col_cluster])%in% input$considered_clusters,] #just considered clusters
         
         if("p-value" %in% input$considered_thresholds){
@@ -130,7 +129,6 @@ shinyServer(function(input, output) {
       if("uniqueness" %in% input$considered_thresholds){
             data_temp <- data_temp[data_temp$uniqueness>=input$uniqueness_threshold[1] & data_temp$uniqueness<=input$uniqueness_threshold[2],]
       }
-      
       data_temp[,-c(length(colnames(data_temp))-1,length(colnames(data_temp))-2)]
   
     })
@@ -218,18 +216,58 @@ shinyServer(function(input, output) {
     })
     
     
+    #Pseudo: Für die DEG tables möchte ich nur die angegebenen Intersections haben -> dabei kann nach Uniqueness gefiltert werden
+    # 1) Passende Uniqueness berechnen für die Anzahl an intersecting Clusters
+    
+    intersecting_uniqueness <- reactive({
+      score <- uniqueness(DEG_clusters = length(input$intersection_clusters),total_clusters = length(clusters()))
+      score
+    })
+    
+    # 2) Tabelle filtered_but_uniqueness nach dieser Uniqueness filtern
+    
+    DEG_uniqueness_table <- reactive({
+      data_temp <- filtered_table_but_uniqueness()
+      data_temp <- data_temp[data_temp$uniqueness==intersecting_uniqueness(),]
+      data_temp
+    })
+    
+    # 3) Gefilterte Tabelle nach genau den passenden Clustern filtern
+    
+    filtered_table_intersection <- reactive({
+      cluster_col <- colnames(DEG_table_input())[input$col_cluster]
+      data_temp <- DEG_uniqueness_table()[DEG_uniqueness_table()[,cluster_col] %in% input$intersection_clusters,]
+      data_temp
+    })
+    
+    # 4) In Upregulated und Downregulated unterteilen
+    
+    DEGs_up <- reactive({
+      data_temp <- filtered_table_intersection()
+      log_col <- colnames(DEG_table_input())[input$col_log]
+      data_temp <- data_temp[data_temp[,log_col]>0,]
+      data_temp
+    })
+    
+    DEGs_down <- reactive({
+      data_temp <- filtered_table_intersection()
+      log_col <- colnames(DEG_table_input())[input$col_log]
+      data_temp <- data_temp[data_temp[,log_col]<0,]
+      data_temp
+    })
+    
     #table of upregulated genes----
     upregulated_genes <- reactive({
         index <- c()
         temp <- filtered_table()[,shown_columns()]
-        for (i in 1:length(temp$gene)){
-            if(temp$gene[i] %in% upregulated_genes_vector()){
-                if(temp[i,6] %in% input$intersection_clusters){
-                    index <- c(index,i)
+        for (i in 1:length(temp[,1])){ #geht durch alle Genpositionen durch
+            if(temp[i,1] %in% upregulated_genes_vector()){ #falls das Gen hochreguliert wird...
+ #               if(temp[i,6] %in% input$intersection_clusters){ #falls das Cluster in intersection_clusters ist...
+                    index <- c(index,i) #werden die Indices gespeichert
                 }
             }
-        }
-        temp[index,]
+ #       }
+        temp#[index,]
     })
     
     #table of downregulated genes----
@@ -271,14 +309,15 @@ shinyServer(function(input, output) {
     #output upregulated genes table----
     output$DEGs_intersection_up <- renderDataTable(
         #req(input$DEG_table)
-        upregulated_genes()
+        DEGs_up()
+        #upregulated_genes()
         #upset_input()
     )
 
     #output downregulated genes table----
     output$DEGs_intersection_down <- renderDataTable(
         #req(input$DEG_table)
-        downregulated_genes()
+        DEGs_down()
     )
     
     #download filtered table----
