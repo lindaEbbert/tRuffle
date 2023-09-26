@@ -79,8 +79,13 @@ shinyUI(fluidPage(theme=shinytheme("cerulean"),
                                               ),
                                      tabPanel("Intersection DEGs",
                                               splitLayout(cellWidths = c("50%","50%"),
-                                                  fluidPage(tags$h4("Upregulated DEGs"),dataTableOutput("DEGs_intersection_up")),
-                                                  fluidPage(tags$h4("Downregulated DEGs"),dataTableOutput("DEGs_intersection_down"))
+                                                  fluidPage(
+                                                    tags$h4("Upregulated DEGs"),
+                                                    dataTableOutput("DEGs_intersection_up")),
+                                                  fluidPage(
+                                                    tags$h4("Downregulated DEGs"),
+                                                    dataTableOutput("DEGs_intersection_down"),
+                                                    downloadButton("download_DEGs", "Download Intersection as .xlsx"))
                                               ))
                          ),width = 10
                          ))))))

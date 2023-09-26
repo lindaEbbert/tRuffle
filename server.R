@@ -334,6 +334,21 @@ shinyServer(function(input, output) {
         }
     )
     
+    #download intersection DEGs table---- #TODO
+    output$download_DEGs <- downloadHandler(
+      filename = function() {
+        paste0("intersection_DEGs", ".xlsx")
+      },
+      content = function(file) {
+        myoutput2 <- openxlsx::createWorkbook()
+        openxlsx::addWorksheet(wb=myoutput2, sheetName = "Upregulated DEGs")
+        openxlsx::writeData(wb=myoutput2, sheet = "Upregulated DEGs",x=DEGs_up())
+        openxlsx::addWorksheet(wb=myoutput2, sheetName = "Downregulated DEGs")
+        openxlsx::writeData(wb=myoutput2, sheet = "Downregulated DEGs",x=DEGs_down())
+        openxlsx::saveWorkbook(wb=myoutput2,file = file, overwrite = T)
+        #vroom::vroom_write(data(), file)
+      }
+    )
     # output$test <- renderText({
     #     print(totalClusters())
     # })
